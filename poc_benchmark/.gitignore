@@ -1,0 +1,13 @@
+*.json
+*.wav
+*.mp3
+*.m4a
+*.mp4
+*.flac
+*.ogg
+*.aac
+*.webm
+*.mov
+*.mkv
+lotusdis/
+__pycache__/

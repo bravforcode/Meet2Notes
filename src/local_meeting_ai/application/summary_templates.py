@@ -38,6 +38,34 @@ BUILTIN_SUMMARY_TEMPLATES: tuple[dict[str, Any], ...] = (
         ],
     },
     {
+        "name": "Detailed Thai-English Meeting",
+        "description": "Detailed minutes with timestamped evidence for Thai-English meetings and calls.",
+        "system_prompt": (
+            "Create faithful, detailed minutes from the transcript only. "
+            "Preserve Thai and English terms, names, numbers and uncertainty; never invent facts. "
+            "Speaker labels indicate diarization and do not prove a person's identity."
+        ),
+        "user_prompt_template": (
+            "Write detailed notes in Thai, retaining English technical terms as spoken. "
+            "Copy exact transcript timestamps and speaker labels for each factual "
+            "bullet when available. Use only timestamps and speakers present in the transcript; "
+            "never invent citations. If evidence is unclear, say so and mark it for review."
+        ),
+        "sections": [
+            _section("ภาพรวม", "State the purpose and context only if supported.", "paragraph"),
+            _section("ประเด็นสนทนา", "Describe each material topic and its reasoning in chronological order with supporting timestamps."),
+            _section("มติและข้อตกลง", "Record only explicit decisions and agreements, with evidence and any stated reasons."),
+            _section(
+                "งานที่ต้องทำ",
+                "List only explicit tasks. Use Not specified for any missing owner or deadline; include an evidence timestamp.",
+                "list",
+                "| Task | Owner | Deadline | Evidence |",
+            ),
+            _section("คำถามและประเด็นค้าง", "List unresolved questions, dependencies and disagreements with evidence."),
+            _section("ข้อมูลที่ต้องตรวจสอบ", "Flag unclear speech, uncertain names, amounts and dates; do not guess."),
+        ],
+    },
+    {
         "name": "Daily Stand-up",
         "description": "Yesterday's progress, today's plan and blockers by participant.",
         "system_prompt": "Produce concise stand-up notes grouped by participant when possible.",
