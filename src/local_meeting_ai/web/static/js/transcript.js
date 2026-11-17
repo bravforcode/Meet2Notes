@@ -77,6 +77,8 @@
   let terminalJobIds = new Set();
   let sourcePreviewTimer = null;
   let sourcePreviewBusy = false;
+  let sourcePreviewEnabled = false;
+  let sourcePreviewGeneration = 0;
   const selectedDevices = { microphone: null, system: null };
   let latestActivityId = 0;
   let postprocessMeetingId = null;
@@ -162,7 +164,7 @@
   }
 
   function bindActivityLog() {
-    let storedHeight = window.matchMedia("(max-width: 600px)").matches ? 150 : 180;
+    let storedHeight = 72;
     try {
       storedHeight = Number(window.localStorage.getItem("meet2notes-activity-log-height"))
         || storedHeight;
@@ -471,6 +473,7 @@
   }
 
   async function refreshSources() {
+    stopSourcePreview();
     rememberSelectedDevices();
     const list = document.querySelector("#native-source-list");
     list.innerHTML = '<div class="source-loading"><i class="mini-spinner"></i> Scanning audio devices…</div>';
@@ -494,6 +497,7 @@
   }
 
   function renderSourceMode() {
+    stopSourcePreview();
     rememberSelectedDevices();
     const mode = selectedSourceMode();
     const nativePanel = document.querySelector("#native-source-panel");
@@ -552,7 +556,6 @@
       : hasSystem && platformKey ? t(`capture.help_${platformKey}`) : "";
     guidance.classList.toggle("hidden", !guidance.textContent);
     syncCaptureSelection();
-    scheduleSourcePreview();
   }
 
   function selectedSourceMode() {
@@ -580,11 +583,17 @@
   function syncCaptureSelection() {
     document.querySelector("#transcription-submit").disabled = selectedSourceMode() !== "file" &&
       (!selectedLiveModes().length || selectedNativeSources().length !== selectedLiveModes().length);
+    document.querySelector("#preview-source-levels").disabled = !selectedNativeSources().length;
   }
 
   function stopSourcePreview() {
+    sourcePreviewEnabled = false;
+    sourcePreviewGeneration += 1;
     if (sourcePreviewTimer) window.clearTimeout(sourcePreviewTimer);
     sourcePreviewTimer = null;
+    const button = document.querySelector("#preview-source-levels");
+    button.textContent = "Test audio levels";
+    button.setAttribute("aria-pressed", "false");
     document.querySelectorAll(".source-level-preview").forEach((meter) => {
       meter.classList.remove("active", "unavailable");
       meter.querySelector("i").style.width = "0%";
@@ -594,14 +603,12 @@
   function scheduleSourcePreview(delay = 120) {
     if (sourcePreviewTimer) window.clearTimeout(sourcePreviewTimer);
     sourcePreviewTimer = null;
-    if (!startDialog.open || selectedSourceMode() === "file") {
-      stopSourcePreview();
-      return;
-    }
+    if (!sourcePreviewEnabled || !startDialog.open || selectedSourceMode() === "file") return;
     sourcePreviewTimer = window.setTimeout(pollSourcePreview, delay);
   }
 
   async function pollSourcePreview() {
+    if (!sourcePreviewEnabled || !startDialog.open) return;
     if (sourcePreviewBusy || !startDialog.open) {
       scheduleSourcePreview(250);
       return;
@@ -614,20 +621,26 @@
       if (!active) item.querySelector("i").style.width = "0%";
     });
     sourcePreviewBusy = true;
+    const generation = sourcePreviewGeneration;
     try {
       // Serialize native probes: PortAudio device manager lifecycles are not thread-safe.
       for (const input of selected) {
-        if (!startDialog.open || selectedSourceMode() === "file") break;
+        if (!sourcePreviewEnabled || generation !== sourcePreviewGeneration ||
+            !startDialog.open || selectedSourceMode() === "file") break;
         if (!input.isConnected || !input.checked) continue;
         const meter = document.querySelector(`[data-source-meter="${CSS.escape(input.value)}"]`);
         try {
-          const result = await api(`/api/audio/sources/${encodeURIComponent(input.value)}/level`);
-          if (meter?.isConnected && input.checked && startDialog.open) {
+          const result = await api(`/api/audio/sources/${encodeURIComponent(input.value)}/level`, {
+            method: "POST",
+            headers: { "X-Meet2Notes-Preview": "1" },
+          });
+          if (sourcePreviewEnabled && generation === sourcePreviewGeneration &&
+              meter?.isConnected && input.checked && startDialog.open) {
             meter.classList.remove("unavailable");
             meter.querySelector("i").style.width = `${Math.round(Number(result.level || 0) * 100)}%`;
           }
         } catch {
-          meter?.classList.add("unavailable");
+          if (sourcePreviewEnabled && generation === sourcePreviewGeneration) meter?.classList.add("unavailable");
         }
       }
     } finally {
@@ -744,6 +757,7 @@
         <article class="segment-row ${segment.id === searchSegmentId ? "search-target" : ""} ${hasSpeaker ? `speaker-color-${speakerColor}` : "speaker-pending"} ${provisional ? "live-segment" : ""}" data-segment-id="${segment.id}">
           <button class="timestamp-button" data-seek-ms="${segment.start_ms}" title="Play from ${formatTimestamp(segment.start_ms)}" aria-label="Play from ${formatTimestamp(segment.start_ms)}" aria-pressed="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>
+            <span class="segment-timestamp">${formatTimestamp(segment.start_ms)}</span>
           </button>
           <div class="segment-cue">
             <span class="segment-speaker"><i></i>${hasSpeaker ? escapeHTML(speakerNames.get(rawSpeaker) || t("speaker", { number: speakerNumber })) : "Speaker pending"}</span>
@@ -1776,12 +1790,12 @@
   }
 
   function openStartDialog() {
+    stopSourcePreview();
     document.querySelector("#transcription-form").reset();
     document.querySelector('input[name="source-mode"][value="microphone"]').checked = true;
     renderSources();
     resetFilePicker();
     startDialog.showModal();
-    scheduleSourcePreview(50);
   }
 
   async function submitTranscription(event) {
@@ -1809,7 +1823,6 @@
       submit.disabled = false;
       delete document.querySelector("#transcription-form").dataset.busy;
       if (!startDialog.open) startDialog.showModal();
-      scheduleSourcePreview();
     }
   }
 
@@ -2602,6 +2615,17 @@
 
   document.querySelector("#start-transcription").addEventListener("click", openStartDialog);
   document.querySelector("#refresh-sources").addEventListener("click", refreshSources);
+  document.querySelector("#preview-source-levels").addEventListener("click", (event) => {
+    if (sourcePreviewEnabled) {
+      stopSourcePreview();
+      return;
+    }
+    if (!startDialog.open || !selectedNativeSources().length) return;
+    sourcePreviewEnabled = true;
+    event.currentTarget.textContent = "Stop audio test";
+    event.currentTarget.setAttribute("aria-pressed", "true");
+    scheduleSourcePreview(0);
+  });
   document.querySelectorAll('input[name="source-mode"]').forEach((input) =>
     input.addEventListener("change", () => {
       if (input.checked) {
@@ -2615,7 +2639,7 @@
     if (event.target.matches("[data-native-source]")) {
       rememberSelectedDevices();
       syncCaptureSelection();
-      scheduleSourcePreview(20);
+      stopSourcePreview();
     }
   });
   document.querySelectorAll("[data-close-transcription]").forEach((button) =>

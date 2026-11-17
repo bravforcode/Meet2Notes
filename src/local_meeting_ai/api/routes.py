@@ -21,6 +21,7 @@ from fastapi import (
     Depends,
     File,
     Form,
+    HTTPException,
     Query,
     Request,
     Response,
@@ -1017,11 +1018,19 @@ async def install_pytorch_cuda_runtime(container: ContainerDependency) -> dict[s
     return await container.pytorch_cuda.install()
 
 
-@router.get("/audio/sources/{source_id}/level")
+@router.post("/audio/sources/{source_id}/level")
 async def audio_source_level(
     source_id: str,
     container: ContainerDependency,
+    request: Request,
 ) -> dict[str, Any]:
+    # A preview opens an input device. Reject navigation and cross-origin requests.
+    expected_origin = f"{request.url.scheme}://{request.headers.get('host', '')}"
+    if (
+        request.headers.get("origin", "").lower() != expected_origin.lower()
+        or request.headers.get("x-meet2notes-preview") != "1"
+    ):
+        raise HTTPException(status_code=403, detail="Same-origin audio preview required")
     level = await asyncio.to_thread(
         container.audio_capture_backend.probe_level,
         source_id,

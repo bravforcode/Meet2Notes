@@ -24,6 +24,12 @@ def distance(a, b):
     return row[-1]
 
 
+def term_checks(terms, hypothesis):
+    """Literal term checks only; transliteration or equivalent numbers do not match."""
+    norm_hypothesis = normalized(hypothesis)
+    return {term: normalized(term) in norm_hypothesis for term in terms}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--manifest', type=Path, required=True, help='JSON list with audio and reference fields')
@@ -37,7 +43,7 @@ def main():
     if not samples:
         raise ValueError('manifest is empty')
     report = {'method': 'NFC + casefold; remove whitespace and Unicode punctuation; corpus CER=sum edit distances/sum reference characters',
-              'limitations': 'Small smoke test; not representative of LINE, overlapping speakers, or code-switching.',
+              'limitations': 'Small smoke test; not representative of LINE, overlapping speakers, or spontaneous code-switching.',
               'whisper_version': importlib.metadata.version('openai-whisper'), 'torch_version': torch.__version__,
               'device_requested': args.device, 'cuda_available': torch.cuda.is_available(), 'models': []}
     for name in args.models:
@@ -64,7 +70,7 @@ def main():
                 errors = distance(nref, normalized(hyp))
                 totals[0] += errors
                 totals[1] += len(nref)
-                result['samples'].append({'audio': item['audio'], 'sha256': hashlib.sha256(wav.read_bytes()).hexdigest(), 'reference': reference, 'hypothesis': hyp, 'edits': errors, 'reference_chars': len(nref), 'cer': errors / len(nref), 'seconds': round(elapsed, 3)})
+                result['samples'].append({'audio': item['audio'], 'sha256': hashlib.sha256(wav.read_bytes()).hexdigest(), 'reference': reference, 'hypothesis': hyp, 'edits': errors, 'reference_chars': len(nref), 'cer': errors / len(nref), 'seconds': round(elapsed, 3), 'expected_term_matches': term_checks(item.get('expected_terms', []), hyp)})
                 result['status'] = 'running'
                 args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
             result['corpus_cer'] = totals[0] / totals[1]

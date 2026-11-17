@@ -5,7 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, cast
 
-from local_meeting_ai.domain.entities import Job, Summary, SummaryTemplate
+from local_meeting_ai.domain.entities import Job, Summary, SummaryResult, SummaryTemplate
 from local_meeting_ai.domain.enums import JobType
 from local_meeting_ai.domain.errors import (
     CapabilityUnavailableError,
@@ -38,6 +38,7 @@ from local_meeting_ai.plugins.contracts import (
 from local_meeting_ai.plugins.manager import PluginManager
 
 from .speaker_text import speaker_turn_text
+from .summary_evidence import flag_summary_timestamps, transcript_notes
 
 logger = logging.getLogger(__name__)
 
@@ -409,25 +410,29 @@ class SummaryService:
             "summary_engine",
             SUMMARY_DEFAULTS,
         )
-        if config["provider"] == "disabled":
+        template = self.templates.get(template_id) if template_id is not None else None
+        if template_id is not None and template is None:
+            raise ValidationError("The selected note format no longer exists")
+        template = template or self._default_template()
+        is_detailed = template.name == "Detailed Thai-English Meeting"
+        extractive = is_detailed and config["provider"] == "disabled"
+        if config["provider"] == "disabled" and not extractive:
             raise CapabilityUnavailableError(
                 "Select an AI model in Settings first"
             )
         if config["provider"] == "local":
             capability = self.engine.capability()
             if not capability["available"] or not self._local_model_ready(config):
-                raise CapabilityUnavailableError(
-                    "Install the selected local AI model in Settings first"
-                )
-        template = self.templates.get(template_id) if template_id is not None else None
-        if template_id is not None and template is None:
-            raise ValidationError("The selected note format no longer exists")
-        template = template or self._default_template()
+                if not is_detailed:
+                    raise CapabilityUnavailableError(
+                        "Install the selected local AI model in Settings first"
+                    )
+                extractive = True
         summary = self.summaries.create(
             meeting_id=transcription.meeting_id,
             transcription_id=transcription.id,
-            provider=str(config["provider"]),
-            model=str(config["model"]),
+            provider="local-extractive" if extractive else str(config["provider"]),
+            model="none" if extractive else str(config["model"]),
             template_id=template.id,
         )
         job = self.jobs.create(
@@ -439,6 +444,7 @@ class SummaryService:
                 "postprocess": postprocess,
                 "postprocess_options": postprocess_options or {},
                 "summary_template": self._template_config(template),
+                "summary_mode": "extractive-transcript" if extractive else "model",
             },
             message="Waiting to generate the meeting summary",
         )
@@ -610,12 +616,17 @@ class SummaryService:
 
         self.summaries.mark_running(summary_id)
         try:
-            result = await self.engine.summarize(
-                transcript,
-                config,
-                cast(ProgressReporter, progress),
-                is_cancelled,
-            )
+            if job.payload.get("summary_mode") == "extractive-transcript":
+                if is_cancelled():
+                    raise JobCancelledError("Summary generation was cancelled")
+                result = SummaryResult(content_markdown=transcript_notes(transcript))
+            else:
+                result = await self.engine.summarize(
+                    transcript,
+                    config,
+                    cast(ProgressReporter, progress),
+                    is_cancelled,
+                )
             artifact = AnalysisArtifact(
                 meeting_id=transcription.meeting_id,
                 transcription_id=transcription.id,
@@ -640,6 +651,16 @@ class SummaryService:
                 after_context,
             )
             artifact = AnalysisArtifact.model_validate(filtered_artifact)
+            template_config = config.get("summary_template")
+            if (
+                isinstance(template_config, dict)
+                and template_config.get("name") == "Detailed Thai-English Meeting"
+            ):
+                content, evidence = flag_summary_timestamps(
+                    artifact.content_markdown, (segment.start_ms for segment in segments)
+                )
+                artifact = artifact.model_copy(update={"content_markdown": content})
+                artifact.metadata["timestamp_check"] = evidence
             completed = self.summaries.complete(
                 summary_id,
                 artifact.content_markdown,

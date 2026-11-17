@@ -411,7 +411,10 @@ def test_live_capture_pause_stop_and_transcribe(tmp_path: Path) -> None:
         assert sources.status_code == 200
         assert sources.json()["capability"]["platform"] == "TestOS"
         assert sources.json()["sources"][0]["name"] == "Studio microphone"
-        level = client.get("/api/audio/sources/fake:microphone:0/level")
+        level = client.post(
+            "/api/audio/sources/fake:microphone:0/level",
+            headers={"Origin": "http://testserver", "X-Meet2Notes-Preview": "1"},
+        )
         assert level.status_code == 200
         assert level.json() == {"source_id": "fake:microphone:0", "level": 0.42}
 

@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T14:55:07.815592+00:00",
+  "title": "Design System: Meet2Notes",
+  "extensions": {
+    "colorMeta": {
+      "dark-action": {
+        "role": "primary",
+        "displayName": "Soft green action",
+        "canonical": "#a4d2af"
+      },
+      "dark-paper": {
+        "role": "neutral",
+        "displayName": "Near-black paper",
+        "canonical": "#101511"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Editorial headline",
+        "purpose": "Page headings."
+      },
+      "transcript": {
+        "displayName": "Transcript",
+        "purpose": "Editable source text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "assistant",
+        "value": "0 12px 35px rgba(0,0,0,.28)",
+        "purpose": "Floating post-meeting assistant."
+      }
+    ],
+    "motion": [],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "820px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main action",
+      "html": "<button class=\"ds-primary\">New meeting</button>",
+      "css": ".ds-primary{background:#a4d2af;color:#101b13;border:1px solid #a4d2af;border-radius:7px;padding:10px 16px;font:550 14px Inter,sans-serif}.ds-primary:hover{background:#bee5c7;border-color:#bee5c7}.ds-primary:focus-visible{outline:2px solid #81bc99;outline-offset:3px}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supporting action",
+      "html": "<button class=\"ds-secondary\">Cancel</button>",
+      "css": ".ds-secondary{color:#cedbd0;background:#1c2820;border:1px solid #3a4c3e;border-radius:7px;padding:10px 16px;font:14px Inter,sans-serif}.ds-secondary:hover{color:#f1f7ee;background:#2a3d2e;border-color:#62836a}.ds-secondary:focus-visible{outline:2px solid #81bc99;outline-offset:3px}"
+    },
+    {
+      "name": "Search field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Find transcript text",
+      "html": "<input class=\"ds-field\" placeholder=\"Search transcript\" aria-label=\"Search transcript\">",
+      "css": ".ds-field{color:#e8f0e8;background:#121a15;border:1px solid #3b4b3e;border-radius:7px;padding:8px;font:15px Inter,sans-serif}.ds-field::placeholder{color:#a3b2a6}.ds-field:focus-visible{outline:2px solid #81bc99;outline-offset:3px}"
+    },
+    {
+      "name": "Active navigation",
+      "kind": "nav",
+      "description": "Current workspace destination",
+      "html": "<nav><a class=\"ds-nav\" href=\"#\">Meetings</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;min-height:44px;padding:0 12px;background:#314d39;color:#f5f8f2;border-radius:7px;font:550 14px Inter,sans-serif;text-decoration:none}.ds-nav:hover{background:#24362a}.ds-nav:focus-visible{outline:2px solid #81bc99;outline-offset:3px}"
+    },
+    {
+      "name": "Status panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Compact system status",
+      "html": "<div class=\"ds-panel\"><strong>Local AI status</strong><p>Live transcript · Idle</p></div>",
+      "css": ".ds-panel{background:#171d19;color:#edf1ec;border:1px solid #303b32;border-radius:8px;padding:16px;font:14px Inter,sans-serif}.ds-panel p{color:#bbc7bd;margin:8px 0 0}"
+    },
+    {
+      "name": "Transcript cue",
+      "kind": "custom",
+      "description": "Timestamp and speaker alongside the text",
+      "html": "<div class=\"ds-row\"><button class=\"ds-time\">00:00</button><strong>Speaker</strong><span>Transcript text</span></div>",
+      "css": ".ds-row{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid #2b382e;color:#e5eee5;font:16px/1.65 Inter,sans-serif}.ds-row strong{color:#b8d8bf;font-size:13px}.ds-time{min-width:80px;height:32px;background:#213329;color:#b5dfbf;border:1px solid #344d3b;border-radius:7px;font:12px Inter,sans-serif;font-variant-numeric:tabular-nums}.ds-time:hover{background:#304f39;border-color:#699b76}.ds-time:focus-visible{outline:2px solid #81bc99;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Dark Reading Room",
+    "overview": "A private meeting workspace gives transcripts a generous, quiet surface. Dark forest-tinted neutrals and restrained green actions support reading; editorial serif titles distinguish the workspace from its practical sans-serif controls and transcript.\n\nThe dark adaptation is the approved new direction. The existing light theme remains available and retains its inherited blue accents and pale surfaces; it shares the updated layout and heading treatment, but is not a light version of the dark palette.",
+    "keyCharacteristics": [
+      "Compact navigation and a wide reading surface.",
+      "Timestamps, speaker cues and editable transcript text stay together.",
+      "Flat surfaces, fine borders and visible focus states.",
+      "Serif headings paired with a practical sans-serif interface."
+    ],
+    "rules": [
+      {
+        "name": "The Reading Contrast Rule",
+        "body": "Keep transcript text distinct from the background and preserve visible timestamps and speaker cues.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do keep source timestamps and speaker cues adjacent to transcript text.",
+      "Do maintain keyboard-visible focus and readable field text.",
+      "Do preserve the inherited light theme when changing shared components."
+    ],
+    "donts": [
+      "Don't turn the reading canvas into a stack of heavily shadowed cards.",
+      "Don't replace the existing Utilities tab with invented features."
+    ]
+  }
+}

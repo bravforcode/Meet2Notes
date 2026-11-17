@@ -47,7 +47,8 @@ BUILTIN_SUMMARY_TEMPLATES: tuple[dict[str, Any], ...] = (
         ),
         "user_prompt_template": (
             "Write detailed notes in Thai, retaining English technical terms as spoken. "
-            "Copy exact transcript timestamps and speaker labels for each factual "
+            "Copy exact transcript timestamps, including brackets and the s suffix, "
+            "and speaker labels for each factual "
             "bullet when available. Use only timestamps and speakers present in the transcript; "
             "never invent citations. If evidence is unclear, say so and mark it for review."
         ),
